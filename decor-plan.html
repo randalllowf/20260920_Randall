@@ -1,0 +1,1639 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 装修规划助手</title>
+<script type="importmap">
+{
+  "imports":{
+    "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+:root{
+  --bg:#0f1117;--card:#1a1d29;--border:#2a2d3a;--text:#e5e7eb;--muted:#9ca3af;
+  --brand:#6366f1;--brand-soft:#1e1b4b;--accent:#8b5cf6;--success:#22c55e;--warn:#f59e0b;
+  --radius:12px;--font:'Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font:14px/1.7 var(--font);min-height:100vh}
+.container{max-width:900px;margin:0 auto;padding:24px 20px 60px}
+header{text-align:center;padding:32px 0 28px}
+header h1{font-size:28px;font-weight:700;letter-spacing:-.5px;background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}
+header p{color:var(--muted);font-size:15px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:28px;margin-bottom:20px}
+.form-group{margin-bottom:22px}
+.form-group label{display:block;font-weight:600;margin-bottom:8px;font-size:14px}
+.form-group label .req{color:var(--accent);margin-left:4px}
+.form-group .hint{color:var(--muted);font-size:12px;margin-top:6px}
+input[type=text],input[type=number],select,textarea{
+  width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:10px 14px;color:var(--text);font:14px var(--font);transition:border-color .2s
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand)}
+select{cursor:pointer}
+textarea{resize:vertical;min-height:80px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:600px){.two-col{grid-template-columns:1fr}}
+.upload-area{
+  border:2px dashed var(--border);border-radius:8px;padding:28px;text-align:center;
+  cursor:pointer;transition:border-color .2s,background .2s
+}
+.upload-area:hover{border-color:var(--brand);background:var(--brand-soft)}
+.upload-area.has-file{border-color:var(--success);border-style:solid}
+.upload-area .icon{font-size:36px;margin-bottom:8px}
+.upload-area .text{color:var(--muted);font-size:13px}
+.upload-area .filename{color:var(--success);font-weight:600;font-size:13px}
+#preview-img{max-width:200px;max-height:150px;border-radius:6px;margin-top:12px;display:none}
+.btn-submit{
+  width:100%;padding:14px;border:none;border-radius:8px;
+  background:linear-gradient(135deg,var(--brand),var(--accent));
+  color:#fff;font:600 16px var(--font);cursor:pointer;transition:opacity .2s,transform .1s
+}
+.btn-submit:hover{opacity:.9}
+.btn-submit:active{transform:scale(.98)}
+.btn-submit:disabled{opacity:.5;cursor:not-allowed}
+.result-card{display:none}
+.result-card.show{display:block;animation:fadeUp .4s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.result-card h2{font-size:18px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.plan-section{margin-bottom:20px}
+.plan-section h3{font-size:14px;color:var(--accent);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.plan-section p{color:var(--text);line-height:1.8;margin-bottom:8px}
+.tag-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.tag{padding:4px 12px;border-radius:999px;font-size:12px;background:var(--brand-soft);color:#a5b4fc;border:1px solid var(--brand)}
+.loading{text-align:center;padding:40px}
+.loading .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--brand);border-radius:50%;margin:0 auto 16px;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error{background:#2a1212;border:1px solid #7f1d1d;border-radius:8px;padding:16px;color:#fca5a5}
+.section-divider{border-top:1px solid var(--border);margin:20px 0}
+.cost-table{width:100%;border-collapse:collapse;margin-top:12px;margin-bottom:12px}
+.cost-table th,.cost-table td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+.cost-table th{color:var(--muted);font-weight:600;font-size:12px;background:var(--bg)}
+.cost-table td{font-size:13px}
+.cost-table .total td{font-weight:700;color:var(--success);border-top:2px solid var(--border)}
+.preview-card{display:none}
+.preview-card.show{display:block;animation:fadeUp .4s ease}
+#three-canvas{width:100%;height:460px;border-radius:8px;background:#111;cursor:grab;display:block}
+#three-canvas:active{cursor:grabbing}
+.preview-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.preview-bar h2{font-size:18px}
+.preview-hint{font-size:12px;color:var(--muted)}
+.status-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;font-size:12px;background:var(--brand-soft);color:#a5b4fc;border:1px solid var(--brand)}
+.status-badge.ok{background:#16241a;color:#4ade80;border-color:#22c55e}
+.status-badge.err{background:#2a1212;color:#fca5a5;border-color:#7f1d1d}
+.canvas-wrap{position:relative;border-radius:8px;overflow:hidden}
+.preview-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.preview-toolbar .style-sel{
+  background:var(--bg);border:1px solid var(--border);border-radius:6px;
+  padding:5px 10px;color:var(--text);font:13px var(--font);cursor:pointer
+}
+.preview-toolbar .style-sel:focus{outline:none;border-color:var(--brand)}
+.preview-toolbar label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none}
+.preview-toolbar input[type=checkbox]{accent-color:var(--brand);cursor:pointer}
+.btn-icon{
+  background:var(--bg);border:1px solid var(--border);border-radius:6px;
+  padding:5px 12px;color:var(--text);font:13px var(--font);cursor:pointer;transition:border-color .2s
+}
+.btn-icon:hover{border-color:var(--brand)}
+.btn-icon:active{transform:scale(.97)}
+/* 羅盤 */
+.compass{
+  position:absolute;top:14px;right:14px;width:68px;height:68px;
+  border-radius:50%;border:2px solid rgba(255,255,255,0.25);
+  background:rgba(10,10,18,0.7);backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;
+  pointer-events:none;z-index:5
+}
+.compass-inner{position:relative;width:100%;height:100%;transition:transform .1s linear}
+.compass-label{position:absolute;left:50%;transform:translateX(-50%);font:700 11px var(--font)}
+.compass-label.n{top:4px;color:#ff6b6b}
+.compass-label.s{bottom:4px;color:#aaa}
+.compass-label.e{right:4px;top:50%;transform:translateY(-50%);color:#aaa}
+.compass-label.w{left:4px;top:50%;transform:translateY(-50%);color:#aaa}
+.compass-dot{position:absolute;top:50%;left:50%;width:4px;height:4px;border-radius:50%;background:var(--brand);transform:translate(-50%,-50%)}
+/* 方位標註（畫布上） */
+.dir-overlay{position:absolute;inset:0;pointer-events:none;z-index:4}
+.dir-text{position:absolute;font:600 13px var(--font);color:rgba(255,255,255,0.5);text-shadow:0 0 4px rgba(0,0,0,0.8)}
+/* 漫遊模式 */
+.walk-btn{background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:6px;padding:5px 14px;color:#fff;font:600 13px var(--font);cursor:pointer;transition:opacity .2s}
+.walk-btn:hover{opacity:.85}
+.walk-btn.active{background:#22c55e}
+.walk-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.65);display:none;align-items:center;justify-content:center;flex-direction:column;z-index:6;cursor:pointer;backdrop-filter:blur(4px)}
+.walk-overlay.show{display:flex}
+.walk-overlay .walk-title{font:700 18px var(--font);color:#fff;margin-bottom:6px}
+.walk-overlay .walk-desc{font:13px var(--font);color:var(--muted);text-align:center;line-height:1.8}
+.crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:22px;height:22px;pointer-events:none;z-index:7;display:none}
+.crosshair.show{display:block}
+.crosshair::before,.crosshair::after{content:'';position:absolute;background:rgba(255,255,255,0.8)}
+.crosshair::before{top:50%;left:0;width:100%;height:2px;transform:translateY(-50%)}
+.crosshair::after{left:50%;top:0;width:2px;height:100%;transform:translateX(-50%)}
+.walk-hud{position:absolute;bottom:10px;left:10px;background:rgba(10,10,18,0.75);backdrop-filter:blur(6px);border-radius:6px;padding:6px 14px;font:12px var(--font);color:#ccc;z-index:7;display:none}
+.walk-hud.show{display:block}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>AI 装修规划助手</h1>
+    <p>上传户型图 → AI 识别布局 → 生成 3D 效果 + 装修方案</p>
+  </header>
+
+  <div class="card">
+    <div class="form-group">
+      <label>房屋面积 <span class="req">*</span></label>
+      <input type="number" id="area" placeholder="例如：100（平方米）" min="1" value="100">
+      <div class="hint">单位：平方米</div>
+    </div>
+    <div class="two-col">
+      <div class="form-group">
+        <label>装修预算 <span class="req">*</span></label>
+        <input type="number" id="budget" placeholder="例如：20（万元）" min="1" value="20">
+        <div class="hint">单位：万元</div>
+      </div>
+      <div class="form-group">
+        <label>装修风格 <span class="req">*</span></label>
+        <select id="style">
+          <option value="现代简约">现代简约</option>
+          <option value="北欧风">北欧风</option>
+          <option value="日式侘寂">日式侘寂</option>
+          <option value="新中式">新中式</option>
+          <option value="轻奢风">轻奢风</option>
+          <option value="工业风">工业风</option>
+          <option value="美式">美式</option>
+          <option value="法式复古">法式复古</option>
+          <option value="地中海">地中海</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>户型图 <span class="req">*</span></label>
+      <div class="upload-area" id="upload-area">
+        <div class="icon">📄</div>
+        <div class="text" id="upload-text">点击上传或拖入户型图（支持图片，AI 将识别布局）</div>
+        <img id="preview-img" alt="户型图预览">
+      </div>
+      <input type="file" id="floor-plan" accept="image/*" style="display:none">
+      <textarea id="plan-desc" placeholder="或用文字描述户型，例如：三室两厅一卫一厨，南北通透，客厅朝南…" style="margin-top:12px"></textarea>
+    </div>
+    <div class="form-group">
+      <label>补充需求（选填）</label>
+      <textarea id="extra" placeholder="例如：需要书房、儿童房、储物空间多、环保材料…"></textarea>
+    </div>
+    <button class="btn-submit" id="submit-btn">分析户型图 + 生成方案</button>
+  </div>
+
+  <div class="card preview-card" id="preview-card">
+    <div class="preview-bar">
+      <h2>🏠 3D 效果预览 <span class="status-badge" id="layout-status">分析中…</span></h2>
+      <span class="preview-hint">鼠标拖拽旋转 · 滾輪縮放</span>
+    </div>
+    <div class="preview-toolbar">
+      <label>风格
+        <select class="style-sel" id="preview-style">
+          <option value="现代简约">现代简约</option>
+          <option value="北欧风">北欧风</option>
+          <option value="日式侘寂">日式侘寂</option>
+          <option value="新中式">新中式</option>
+          <option value="轻奢风">轻奢风</option>
+          <option value="工业风">工业风</option>
+          <option value="美式">美式</option>
+          <option value="法式复古">法式复古</option>
+          <option value="地中海">地中海</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="toggle-ceiling"> 天花板</label>
+      <button class="btn-icon" id="reset-view">↺ 重置视角</button>
+      <button class="walk-btn" id="walk-btn">🚶 漫游</button>
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="three-canvas"></canvas>
+      <div class="dir-overlay" id="dir-overlay">
+        <span class="dir-text" id="dir-n" style="top:8px;left:50%;transform:translateX(-50%)">北 N</span>
+        <span class="dir-text" id="dir-s" style="bottom:8px;left:50%;transform:translateX(-50%)">南 S</span>
+      </div>
+      <div class="compass">
+        <div class="compass-inner" id="compass-inner">
+          <span class="compass-label n">N</span>
+          <span class="compass-label s">S</span>
+          <span class="compass-label e">E</span>
+          <span class="compass-label w">W</span>
+          <div class="compass-dot"></div>
+        </div>
+      </div>
+      <div class="walk-overlay" id="walk-overlay">
+        <div class="walk-title">点击开始漫游</div>
+        <div class="walk-desc">WASD 移动 · Shift 快跑 · 鼠标转视角<br>Esc 退出漫游</div>
+      </div>
+      <div class="crosshair" id="crosshair"></div>
+      <div class="walk-hud" id="walk-hud"></div>
+    </div>
+  </div>
+
+  <div class="card result-card" id="result-card">
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>AI 正在为你规划装修方案…</p>
+    </div>
+    <div id="result-content" style="display:none"></div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const API_URL='https://api.siliconflow.cn/v1/chat/completions';
+const API_KEY='sk-wmmppaylmjuwomjhwxidtwubxyogyddfkzlwhgcsiybiwfky';
+const TEXT_MODEL='Qwen/Qwen2.5-7B-Instruct';
+const VISION_MODEL='Qwen/Qwen3-VL-8B-Instruct';
+
+const STYLE_THEMES={
+  '现代简约':{wall:0xeeeeee,floor:0x999999,sofa:0x555555,accent:0x4a90d9,metal:0xcccccc},
+  '北欧风':{wall:0xf5f0e8,floor:0xc8a878,sofa:0x8b7355,accent:0x5b8c5a,metal:0xb0b0b0},
+  '日式侘寂':{wall:0xd4c5a9,floor:0xa68b5b,sofa:0x6b5642,accent:0x8b7355,metal:0x9a9a9a},
+  '新中式':{wall:0xe8dcc8,floor:0x5c3a2e,sofa:0x8b1a1a,accent:0xc4a35a,metal:0x8b6914},
+  '轻奢风':{wall:0x1a1a2e,floor:0x2c2c3e,sofa:0xd4af37,accent:0xc0c0c0,metal:0xd4af37},
+  '工业风':{wall:0x6b6b6b,floor:0x4a4a4a,sofa:0x2c2c2c,accent:0x8b4513,metal:0xaaaaaa},
+  '美式':{wall:0xeae0d0,floor:0x8b6f47,sofa:0x6b4226,accent:0x8b0000,metal:0x8b6914},
+  '法式复古':{wall:0xf0e6d2,floor:0xb0a080,sofa:0x9b8b6e,accent:0xb08050,metal:0xc0b070},
+  '地中海':{wall:0xffffff,floor:0xc4a000,sofa:0x1e6091,accent:0x4a90d9,metal:0x80c0e0}
+};
+
+/* ============ 全域 3D 變數 ============ */
+let scene,camera,renderer,controls,animId=null;
+let currentLayout=null,currentStyle='现代简约',ceilingMesh=null;
+let walkActive=false,walkKeys={},collisionSegs=[],roomLabels=[];
+
+/* ============ 上傳邏輯 ============ */
+let uploadedImageBase64=null;
+
+const uploadArea=document.getElementById('upload-area');
+const fileInput=document.getElementById('floor-plan');
+const previewImg=document.getElementById('preview-img');
+const uploadText=document.getElementById('upload-text');
+
+uploadArea.addEventListener('click',()=>fileInput.click());
+uploadArea.addEventListener('dragover',e=>{e.preventDefault();uploadArea.style.borderColor='var(--brand)'});
+uploadArea.addEventListener('dragleave',e=>{uploadArea.style.borderColor=''});
+uploadArea.addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0])});
+fileInput.addEventListener('change',e=>{if(e.target.files.length)handleFile(e.target.files[0])});
+
+function handleFile(file){
+  if(!file.type.startsWith('image/')){alert('请上传图片文件');return}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    // 顯示預覽
+    previewImg.src=e.target.result;
+    previewImg.style.display='block';
+    uploadArea.classList.add('has-file');
+    uploadText.textContent=file.name;
+    uploadText.className='filename';
+    // 壓縮圖片到 max 900px，避免 API payload 過大
+    resizeImage(e.target.result,900).then(dataUrl=>{
+      uploadedImageBase64=dataUrl;
+      const sizeKB=Math.round((dataUrl.length*3/4)/1024);
+      console.log('[圖片壓縮後]',sizeKB,'KB');
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+// 將圖片等比縮放到 maxSide 以下，輸出 JPEG 壓縮的 data URL
+function resizeImage(dataUrl,maxSide=900,quality=0.82){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const scale=Math.min(1,maxSide/Math.max(img.width,img.height));
+      const w=Math.round(img.width*scale);
+      const h=Math.round(img.height*scale);
+      const c=document.createElement('canvas');
+      c.width=w;c.height=h;
+      const ctx=c.getContext('2d');
+      ctx.fillStyle='#ffffff'; // JPEG 不支援透明色，用白底
+      ctx.fillRect(0,0,w,h);
+      ctx.drawImage(img,0,0,w,h);
+      resolve(c.toDataURL('image/jpeg',quality));
+    };
+    img.onerror=()=>resolve(dataUrl); // 失敗則退回原圖
+    img.src=dataUrl;
+  });
+}
+
+/* ============ 提交流程 ============ */
+document.getElementById('submit-btn').addEventListener('click',submit);
+
+async function submit(){
+  const area=parseFloat(document.getElementById('area').value);
+  const budget=document.getElementById('budget').value;
+  const style=document.getElementById('style').value;
+  const planDesc=document.getElementById('plan-desc').value;
+  const extra=document.getElementById('extra').value;
+
+  if(!area||!budget||!style){alert('请填写面积、预算和风格');return}
+  if(!planDesc&&!uploadedImageBase64){alert('请上传户型图或用文字描述户型');return}
+
+  const btn=document.getElementById('submit-btn');
+  btn.disabled=true;btn.textContent='正在分析…';
+
+  // 顯示預覽卡片
+  const previewCard=document.getElementById('preview-card');
+  const resultCard=document.getElementById('result-card');
+  const statusBadge=document.getElementById('layout-status');
+  previewCard.classList.add('show');
+  resultCard.classList.add('show');
+  document.getElementById('loading').style.display='block';
+  document.getElementById('result-content').style.display='none';
+
+  // ===== 步驟 1：分析戶型圖，取得佈局 JSON =====
+  let layout=null;
+  try{
+    statusBadge.textContent='分析户型图中…';
+    statusBadge.className='status-badge';
+    layout=await analyzeFloorPlan(uploadedImageBase64,planDesc,area);
+    statusBadge.textContent='布局识别完成 ('+layout.rooms.length+' 个房间)';
+    statusBadge.className='status-badge ok';
+  }catch(err){
+    console.error('Floor plan analysis failed:',err);
+    const errMsg=err.message||String(err);
+    statusBadge.textContent='识别失败: '+errMsg.substring(0,22);
+    statusBadge.className='status-badge err';
+    layout=fallbackLayout(area);
+    // 在結果區顯示錯誤提示
+    setTimeout(()=>{
+      const rc=document.getElementById('result-content');
+      if(rc){
+        const notice=document.createElement('div');
+        notice.className='error';
+        notice.style.cssText='margin-bottom:16px;font-size:13px';
+        notice.innerHTML=`<strong>⚠️ 户型图识别失败</strong><br>原因：${errMsg}<br>已使用默认布局替代。请检查浏览器控制台(F12)查看详情，或改用文字描述户型。`;
+        rc.prepend(notice);
+      }
+    },50);
+  }
+
+  // 立即建構 3D 場景
+  currentLayout=layout;
+  currentStyle=style;
+  document.getElementById('preview-style').value=style;
+  document.getElementById('toggle-ceiling').checked=false;
+  setTimeout(()=>buildSceneFromLayout(layout,style),100);
+
+  // ===== 步驟 2：生成裝修方案文字 =====
+  btn.textContent='正在生成方案…';
+  try{
+    const aiText=await generatePlan(layout,area,budget,style,planDesc,extra);
+    renderResult(aiText,area,budget,style);
+  }catch(err){
+    document.getElementById('loading').style.display='none';
+    document.getElementById('result-content').style.display='block';
+    document.getElementById('result-content').innerHTML=
+      `<div class="error"><strong>方案生成失败</strong><br>${err.message}</div>`;
+  }finally{
+    btn.disabled=false;
+    btn.textContent='分析户型图 + 生成方案';
+  }
+}
+
+/* ============ 分析戶型圖（視覺模型 + 文字）============ */
+async function analyzeFloorPlan(imageBase64,textDesc,area){
+  const jsonPrompt=`你是建筑分析师。${imageBase64?'请仔细观察我提供的户型图图片，识别出图中所有房间：':''}${imageBase64?'':'根据以下文字描述：'+(textDesc||'')}。
+
+房屋总面积约 ${area} 平方米。
+
+【重要】只输出纯 JSON，不要任何解释文字、Markdown 或代码块。JSON 结构如下（这是格式模板，请用你实际观察到的房间数据替换所有数值和名称）：
+
+{"totalW": 实际总宽, "totalD": 实际总深, "height": 2.8, "rooms": [
+  {"name": "实际房间名", "x": 房间西南角x坐标, "z": 房间西南角z坐标, "w": 宽度(米), "d": 深度(米), "type": 类型代码},
+  ...
+]}
+
+【规则】
+1. 仔细数出图片中所有房间（客厅、主卧、次卧、厨房、餐厅、卫生间、阳台、书房等）
+2. 估算每个房间的相对位置和尺寸（用整数或一位小数，单位米）
+3. totalW × totalD 应接近 ${area} 平米
+4. 所有房间紧密拼接（共享墙体，不留空隙）
+5. type 只能是：living / bedroom / kitchen / dining / bathroom / balcony / study
+6. 务必按图片实际内容填写，不要复制上面模板里的示例数值！`;
+
+  const messages=[];
+
+  if(imageBase64){
+    messages.push({
+      role:'user',
+      content:[
+        {type:'image_url',image_url:{url:imageBase64,detail:'low'}},
+        {type:'text',text:jsonPrompt}
+      ]
+    });
+  }else{
+    messages.push({role:'user',content:jsonPrompt});
+  }
+
+  const modelToUse=imageBase64?VISION_MODEL:TEXT_MODEL;
+  const payload={model:modelToUse,messages,temperature:0.2,max_tokens:2048};
+  console.log('[調用 AI] 模型=',modelToUse,'圖片=',imageBase64?'有':'無');
+
+  const res=await fetch(API_URL,{
+    method:'POST',
+    headers:{'Authorization':`Bearer ${API_KEY}`,'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+  });
+
+  if(!res.ok){
+    const txt=await res.text();
+    let msg=`API 錯誤 HTTP ${res.status}`;
+    try{const j=JSON.parse(txt);msg=j.error?.message||msg}catch{}
+    console.error('[analyzeFloorPlan 失敗]',msg);
+    throw new Error(msg);
+  }
+
+  const data=await res.json();
+  if(data.choices?.[0]?.finish_reason==='length'){
+    console.warn('[警告] 回覆被截斷（max_tokens 不夠）');
+  }
+  const text=data.choices?.[0]?.message?.content||'';
+  if(!text){throw new Error('AI 回傳內容為空')}
+  console.log('[AI 回傳原文]\n',text);
+  return parseLayoutJSON(text);
+}
+
+function parseLayoutJSON(text){
+  // 提取 JSON
+  let jsonStr=text;
+  const jsonMatch=text.match(/\{[\s\S]*\}/);
+  if(jsonMatch)jsonStr=jsonMatch[0];
+  // 清理 markdown 代碼塊
+  jsonStr=jsonStr.replace(/```json/gi,'').replace(/```/g,'').trim();
+  const layout=JSON.parse(jsonStr);
+
+  // 驗證基本結構
+  if(!layout.rooms||!Array.isArray(layout.rooms)||layout.rooms.length===0){
+    throw new Error('Invalid layout: missing rooms');
+  }
+  if(!layout.totalW)layout.totalW=Math.max(...layout.rooms.map(r=>r.x+r.w));
+  if(!layout.totalD)layout.totalD=Math.max(...layout.rooms.map(r=>r.z+r.d));
+  if(!layout.height)layout.height=2.8;
+
+  // 清洗每個房間的必填欄位
+  layout.rooms=layout.rooms.map(r=>({
+    name:String(r.name||'房间').trim(),
+    x:parseFloat(r.x)||0,
+    z:parseFloat(r.z)||0,
+    w:parseFloat(r.w)||3,
+    d:parseFloat(r.d)||3,
+    type:String(r.type||'living').trim().toLowerCase()
+  }));
+
+  // 防 echo 檢測：如果 totalW/totalD 和 rooms 全是硬編碼範例值
+  const isEcho=(layout.totalW===12&&layout.totalD===8&&layout.rooms.length===7
+    &&layout.rooms[0].w===5&&layout.rooms[0].d===4);
+  if(isEcho){
+    console.warn('[parseLayoutJSON] 偵測到模型回傳舊範例數值，可能沒有真正識別圖片');
+    throw new Error('AI 回傳了範例數值而非識別結果（模型未真正理解圖片），請重新上傳清晰的戶型圖');
+  }
+
+  console.log('[parseLayoutJSON] 解析成功',layout.rooms.length,'個房間');
+  return layout;
+}
+
+function fallbackLayout(area){
+  const side=Math.max(6,Math.round(Math.sqrt(area)));
+  return{
+    totalW:side,totalD:side,height:2.8,
+    rooms:[
+      {name:'客厅',x:0,z:0,w:side*0.5,d:side*0.5,type:'living'},
+      {name:'主卧',x:side*0.5,z:0,w:side*0.5,d:side*0.5,type:'bedroom'},
+      {name:'厨房',x:0,z:side*0.5,w:side*0.3,d:side*0.5,type:'kitchen'},
+      {name:'卫生间',x:side*0.3,z:side*0.5,w:side*0.2,d:side*0.5,type:'bathroom'},
+      {name:'阳台',x:side*0.5,z:side*0.5,w:side*0.5,d:side*0.5,type:'balcony'}
+    ]
+  };
+}
+
+/* ============ 生成裝修方案文字 ============ */
+async function generatePlan(layout,area,budget,style,planDesc,extra){
+  const roomList=layout.rooms.map(r=>`${r.name}(${r.w}×${r.d}m)`).join('、');
+  const prompt=`你是一位资深室内设计师。请根据以下信息生成一份详细的装修规划方案。
+
+【基本信息】
+- 房屋面积：${area} 平方米
+- 装修预算：${budget} 万元
+- 装修风格：${style}
+- 户型布局：${roomList}
+- 补充需求：${extra||'无'}
+
+请严格按以下结构输出（纯Markdown，不要代码块包裹）：
+
+## 设计理念
+（2-3句话概括设计思路）
+
+## 空间布局建议
+（逐个空间说明：${layout.rooms.map(r=>r.name).join('、')}等，每个空间2-3句）
+
+## 色彩与材质方案
+（主色调、辅助色、材质选择，分段说明）
+
+## 软装搭配建议
+（家具、灯具、窗帘、装饰画等，分段说明）
+
+## 预算分配表
+| 空间/项目 | 预算(万元) | 说明 |
+|---|---|---|
+| 客厅 | x | ... |
+| 主卧 | x | ... |
+| 次卧 | x | ... |
+| 厨房 | x | ... |
+| 卫生间 | x | ... |
+| 软装 | x | ... |
+| 电气 | x | ... |
+| 总计 | ${budget} | 全屋装修总预算 |
+
+（各项目金额总和等于${budget}万元，按${area}平米合理分配）
+
+## 施工注意事项
+（3-5条关键提醒）`;
+
+  const res=await fetch(API_URL,{
+    method:'POST',
+    headers:{'Authorization':`Bearer ${API_KEY}`,'Content-Type':'application/json'},
+    body:JSON.stringify({
+      model:TEXT_MODEL,
+      messages:[
+        {role:'system',content:'你是资深室内设计师，回答用中文，使用Markdown格式。'},
+        {role:'user',content:prompt}
+      ],
+      temperature:0.7,
+      max_tokens:2048
+    })
+  });
+
+  if(!res.ok){
+    const errData=await res.json().catch(()=>({}));
+    throw new Error(errData.error?.message||`API错误(${res.status})`);
+  }
+  const data=await res.json();
+  return data.choices[0].message.content;
+}
+
+/* ============ 程序化材質貼圖 ============ */
+function makeWoodTexture(baseColor){
+  const c=document.createElement('canvas');c.width=c.height=256;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#'+baseColor.toString(16).padStart(6,'0');
+  ctx.fillRect(0,0,256,256);
+  for(let i=0;i<24;i++){
+    ctx.strokeStyle=`rgba(0,0,0,${0.04+Math.random()*0.08})`;
+    ctx.lineWidth=0.5+Math.random()*2;
+    ctx.beginPath();const y=Math.random()*256;
+    ctx.moveTo(0,y);
+    ctx.bezierCurveTo(85,y+Math.random()*16-8,170,y+Math.random()*16-8,256,y);
+    ctx.stroke();
+  }
+  for(let i=1;i<4;i++){
+    ctx.strokeStyle='rgba(0,0,0,0.18)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(0,i*64);ctx.lineTo(256,i*64);ctx.stroke();
+  }
+  const tex=new THREE.CanvasTexture(c);
+  tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+  tex.colorSpace=THREE.SRGBColorSpace;
+  return tex;
+}
+
+function makeTileTexture(baseColor){
+  const c=document.createElement('canvas');c.width=c.height=256;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#'+baseColor.toString(16).padStart(6,'0');
+  ctx.fillRect(0,0,256,256);
+  ctx.strokeStyle='rgba(255,255,255,0.35)';ctx.lineWidth=2;
+  for(let i=0;i<=4;i++){
+    ctx.beginPath();ctx.moveTo(i*64,0);ctx.lineTo(i*64,256);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,i*64);ctx.lineTo(256,i*64);ctx.stroke();
+  }
+  // 微噪點
+  for(let i=0;i<80;i++){
+    ctx.fillStyle=`rgba(255,255,255,${Math.random()*0.1})`;
+    ctx.fillRect(Math.random()*256,Math.random()*256,2,2);
+  }
+  const tex=new THREE.CanvasTexture(c);
+  tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+  tex.colorSpace=THREE.SRGBColorSpace;
+  return tex;
+}
+
+function makeStuccoTexture(baseColor){
+  const c=document.createElement('canvas');c.width=c.height=256;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#'+baseColor.toString(16).padStart(6,'0');
+  ctx.fillRect(0,0,256,256);
+  for(let i=0;i<300;i++){
+    const v=Math.random();
+    ctx.fillStyle=`rgba(${v<0.5?255:0},${v<0.5?255:0},${v<0.5?255:0},${Math.random()*0.08})`;
+    const s=1+Math.random()*3;
+    ctx.fillRect(Math.random()*256,Math.random()*256,s,s);
+  }
+  const tex=new THREE.CanvasTexture(c);
+  tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+  tex.colorSpace=THREE.SRGBColorSpace;
+  return tex;
+}
+
+function makeFabricTexture(baseColor){
+  const c=document.createElement('canvas');c.width=c.height=128;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#'+baseColor.toString(16).padStart(6,'0');
+  ctx.fillRect(0,0,128,128);
+  for(let i=0;i<200;i++){
+    ctx.strokeStyle=`rgba(0,0,0,${Math.random()*0.08})`;
+    ctx.lineWidth=0.5;
+    const x=Math.random()*128,y=Math.random()*128;
+    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+2,y+1);ctx.stroke();
+  }
+  const tex=new THREE.CanvasTexture(c);
+  tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+  tex.colorSpace=THREE.SRGBColorSpace;
+  return tex;
+}
+
+/* ============ 3D 場景：依佈局 JSON 動態建構 ============ */
+function buildSceneFromLayout(layout,styleName){
+  const canvas=document.getElementById('three-canvas');
+  const theme=STYLE_THEMES[styleName]||STYLE_THEMES['现代简约'];
+  const W=layout.totalW,D=layout.totalD,H=layout.height;
+
+  if(animId)cancelAnimationFrame(animId);
+  if(renderer){renderer.dispose();renderer.domElement=null}
+
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x1a1d29);
+  scene.fog=new THREE.FogExp2(0x1a1d29,0.015);
+
+  camera=new THREE.PerspectiveCamera(55,canvas.clientWidth/canvas.clientHeight,0.1,300);
+  camera.position.set(W*0.65,W*0.6,D*0.85);
+
+  renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+  renderer.setSize(canvas.clientWidth,canvas.clientHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure=1.15;
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+
+  // 環境貼圖：PBR 反射
+  const pmrem=new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+  const envScene=new RoomEnvironment();
+  scene.environment=pmrem.fromScene(envScene,0.04).texture;
+
+  controls=new OrbitControls(camera,canvas);
+  controls.enableDamping=true;
+  controls.dampingFactor=0.06;
+  controls.maxPolarAngle=Math.PI*0.485;
+  controls.minDistance=3;
+  controls.maxDistance=W*2.5;
+  controls.target.set(W/2,1.2,D/2);
+  controls.autoRotate=false;
+
+  /* ===== 光照系統 ===== */
+  // 天光
+  const hemi=new THREE.HemisphereLight(0xcfe4ff,0x4a4458,0.55);
+  scene.add(hemi);
+  // 主太陽光（暖白，高品質陰影）
+  const sun=new THREE.DirectionalLight(0xfff5e8,1.4);
+  sun.position.set(W*0.7,H*2.5,-D*0.4);
+  sun.castShadow=true;
+  sun.shadow.mapSize.set(4096,4096);
+  sun.shadow.bias=-0.0002;
+  sun.shadow.normalBias=0.02;
+  const sc=W*0.7;
+  sun.shadow.camera.left=-sc;sun.shadow.camera.right=sc;
+  sun.shadow.camera.top=sc;sun.shadow.camera.bottom=-sc;
+  sun.shadow.camera.near=0.5;sun.shadow.camera.far=W*4;
+  sun.shadow.radius=4;
+  scene.add(sun);
+  // 環境光補光
+  scene.add(new THREE.AmbientLight(0x505068,0.35));
+
+  // 各房間暖色室內燈
+  layout.rooms.forEach(room=>{
+    const pl=new THREE.PointLight(0xffd0a0,0.35,Math.max(room.w,room.d)*1.8,2);
+    pl.position.set(room.x+room.w/2,H*0.85,room.z+room.d/2);
+    scene.add(pl);
+  });
+
+  /* ===== 地板（程序化木紋貼圖）===== */
+  const floorTex=makeWoodTexture(theme.floor);
+  floorTex.repeat.set(W*0.5,D*0.5);
+  const floorMat=new THREE.MeshStandardMaterial({
+    map:floorTex,roughness:0.35,metalness:0.15,envMapIntensity:0.5
+  });
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(W+0.2,D+0.2),floorMat);
+  floor.rotation.x=-Math.PI/2;
+  floor.receiveShadow=true;
+  scene.add(floor);
+
+  // 各房間地板（依房間類型使用不同材質貼圖）
+  layout.rooms.forEach(room=>{
+    const isTile=(room.type==='kitchen'||room.type==='bathroom');
+    const isBalcony=(room.type==='balcony');
+    let tex,rough=0.4,metal=0.1;
+    if(isTile){
+      tex=makeTileTexture(getRoomFloorColor(room.type,theme));
+      tex.repeat.set(room.w*0.5,room.d*0.5);
+      rough=0.3;metal=0.15;
+    }else if(isBalcony){
+      tex=makeTileTexture(getRoomFloorColor(room.type,theme));
+      tex.repeat.set(room.w,room.d);
+      rough=0.7;metal=0.05;
+    }else{
+      tex=makeWoodTexture(getRoomFloorColor(room.type,theme));
+      tex.repeat.set(room.w*0.5,room.d*0.5);
+      rough=0.4;metal=0.1;
+    }
+    const roomFloor=new THREE.Mesh(
+      new THREE.PlaneGeometry(room.w,room.d),
+      new THREE.MeshStandardMaterial({map:tex,roughness:rough,metalness:metal,envMapIntensity:0.4})
+    );
+    roomFloor.rotation.x=-Math.PI/2;
+    roomFloor.position.set(room.x+room.w/2,0.005,room.z+room.d/2);
+    roomFloor.receiveShadow=true;
+    scene.add(roomFloor);
+
+    // 房間標記環
+    const marker=new THREE.Mesh(
+      new THREE.RingGeometry(0.12,0.22,32),
+      new THREE.MeshBasicMaterial({color:theme.accent,transparent:true,opacity:0.4,side:THREE.DoubleSide})
+    );
+    marker.rotation.x=-Math.PI/2;
+    marker.position.set(room.x+room.w/2,0.015,room.z+room.d/2);
+    scene.add(marker);
+  });
+
+  /* ===== 天花板（預設隱藏）===== */
+  const ceilMat=new THREE.MeshStandardMaterial({
+    color:0xf0f0f0,roughness:0.95,metalness:0.0,side:THREE.BackSide
+  });
+  ceilingMesh=new THREE.Mesh(new THREE.PlaneGeometry(W,D),ceilMat);
+  ceilingMesh.rotation.x=Math.PI/2;
+  ceilingMesh.position.set(W/2,H,D/2);
+  ceilingMesh.receiveShadow=true;
+  ceilingMesh.visible=document.getElementById('toggle-ceiling')?.checked||false;
+  scene.add(ceilingMesh);
+
+  /* ===== 牆壁（程序化灰泥貼圖）+ 踢腳線 + 窗戶 ===== */
+  const wallTex=makeStuccoTexture(theme.wall);
+  wallTex.repeat.set(W*0.3,H*0.5);
+  const wallMat=new THREE.MeshStandardMaterial({map:wallTex,roughness:0.85,metalness:0.02,envMapIntensity:0.3});
+  const baseboardMat=new THREE.MeshStandardMaterial({color:0xeeeeee,roughness:0.5,metalness:0.1});
+  const glassMat=new THREE.MeshPhysicalMaterial({
+    color:0xb0d4f0,transparent:true,opacity:0.18,
+    roughness:0.02,metalness:0.0,transmission:0.92,
+    ior:1.52,thickness:0.4,envMapIntensity:1.0
+  });
+
+  // 外牆
+  buildWallWithMolding(0,0,W,0.15,H,wallMat,baseboardMat);
+  buildWallWithMolding(0,0,0.15,D,H,wallMat,baseboardMat);
+  buildWallWithMolding(W-0.15,0,0.15,D,H,wallMat,baseboardMat);
+  const opening=W*0.35;
+  buildWallWithMolding(0,D-0.15,opening,0.15,H,wallMat,baseboardMat);
+  buildWallWithMolding(W-opening,D-0.15,opening,0.15,H,wallMat,baseboardMat);
+
+  // 窗戶（後牆 + 左牆各一）
+  addWindow(theme,glassMat,W*0.25,H*0.55,-D/2+0.1,1.6,1.2,'z');
+  addWindow(theme,glassMat,W*0.7,H*0.55,-D/2+0.1,1.4,1.0,'z');
+  addWindow(theme,glassMat,-W/2+0.1,H*0.55,D*0.3,1.2,1.0,'x');
+  addWindow(theme,glassMat,-W/2+0.1,H*0.55,D*0.7,1.2,1.0,'x');
+
+  // 內牆
+  buildInteriorWalls(layout.rooms,wallMat,theme);
+  // 踢腳線只在外牆加
+
+  /* ===== 傢俱 ===== */
+  layout.rooms.forEach(room=>{
+    placeFurniture(room,theme);
+  });
+
+  /* ===== 房間名稱 + 尺寸標籤 ===== */
+  roomLabels.forEach(l=>scene.remove(l));
+  roomLabels=[];
+  layout.rooms.forEach(room=>{
+    // 名稱標籤
+    const nameSprite=createLabelSprite(room.name,28,'rgba(99,102,241,0.85)');
+    nameSprite.position.set(room.x+room.w/2,2.4,room.z+room.d/2);
+    nameSprite.scale.set(Math.min(room.w*0.6,2.5),0.6,1);
+    scene.add(nameSprite);
+    roomLabels.push(nameSprite);
+    // 尺寸標籤
+    const dimText=`${room.w.toFixed(1)} × ${room.d.toFixed(1)} m`;
+    const dimSprite=createLabelSprite(dimText,20,'rgba(156,163,175,0.8)');
+    dimSprite.position.set(room.x+room.w/2,2.0,room.z+room.d/2);
+    dimSprite.scale.set(Math.min(room.w*0.55,2.2),0.5,1);
+    scene.add(dimSprite);
+    roomLabels.push(dimSprite);
+    // 地板上的尺寸標記（平面投影，平躺）
+    const floorCanvas=document.createElement('canvas');
+    floorCanvas.width=512;floorCanvas.height=256;
+    const fctx=floorCanvas.getContext('2d');
+    fctx.fillStyle='rgba(255,255,255,0.06)';
+    fctx.fillRect(0,0,512,256);
+    fctx.strokeStyle='rgba(255,255,255,0.15)';
+    fctx.lineWidth=2;
+    fctx.strokeRect(2,2,508,252);
+    fctx.fillStyle='rgba(255,255,255,0.55)';
+    fctx.font='bold 36px sans-serif';
+    fctx.textAlign='center';
+    fctx.textBaseline='middle';
+    fctx.fillText(room.name,256,90);
+    fctx.font='24px sans-serif';
+    fctx.fillStyle='rgba(255,255,255,0.4)';
+    fctx.fillText(dimText,256,160);
+    const floorTex=new THREE.CanvasTexture(floorCanvas);
+    floorTex.colorSpace=THREE.SRGBColorSpace;
+    const floorLabel=new THREE.Mesh(
+      new THREE.PlaneGeometry(Math.min(room.w*0.8,3.5),Math.min(room.d*0.6,2.5)),
+      new THREE.MeshBasicMaterial({map:floorTex,transparent:true,depthWrite:false,opacity:0.7})
+    );
+    floorLabel.rotation.x=-Math.PI/2;
+    floorLabel.position.set(room.x+room.w/2,0.03,room.z+room.d/2);
+    scene.add(floorLabel);
+    roomLabels.push(floorLabel);
+  });
+
+  /* ===== 碰撞牆段 ===== */
+  collisionSegs=buildCollisionSegs(layout);
+
+  // 動畫
+  const compassInner=document.getElementById('compass-inner');
+  const dirN=document.getElementById('dir-n');
+  const dirS=document.getElementById('dir-s');
+  function animate(){
+    animId=requestAnimationFrame(animate);
+    if(walkActive){
+      updateWalk();
+    }else{
+      controls.update();
+    }
+    // 羅盤旋轉
+    const azimuth=walkActive?camera.rotation.y:controls.getAzimuthalAngle();
+    const deg=(-azimuth*180/Math.PI).toFixed(1);
+    if(compassInner)compassInner.style.transform=`rotate(${deg}deg)`;
+    if(dirN){
+      if(walkActive){
+        dirN.style.opacity=1;
+        dirS.style.opacity=1;
+      }else{
+        const elev=controls.getPolarAngle();
+        const fade=Math.max(0,1-(elev-Math.PI/3)/(Math.PI/6));
+        dirN.style.opacity=fade;
+        dirS.style.opacity=fade;
+      }
+    }
+    renderer.render(scene,camera);
+  }
+  animate();
+}
+
+/* ============ 房間標籤：Canvas 紋理 Sprite ============ */
+function createLabelSprite(text,fontSize,bgColor){
+  const canvas=document.createElement('canvas');
+  canvas.width=512;canvas.height=128;
+  const ctx=canvas.getContext('2d');
+  // 背景圓角
+  ctx.fillStyle=bgColor;
+  roundRect(ctx,0,0,canvas.width,canvas.height,16);
+  ctx.fill();
+  // 文字
+  ctx.fillStyle='#ffffff';
+  ctx.font=`bold ${fontSize}px sans-serif`;
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText(text,canvas.width/2,canvas.height/2);
+  const tex=new THREE.CanvasTexture(canvas);
+  tex.colorSpace=THREE.SRGBColorSpace;
+  const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:true,depthWrite:false}));
+  sprite.renderOrder=500;
+  return sprite;
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+}
+
+/* ============ 碰撞牆段建構 ============ */
+function buildCollisionSegs(layout){
+  const segs=[];
+  const W=layout.totalW,D=layout.totalD;
+  // 外牆（南牆留開口）
+  segs.push({x1:0,z1:0,x2:W,z2:0});         // 北
+  segs.push({x1:0,z1:0,x2:0,z2:D});         // 西
+  segs.push({x1:W,z1:0,x2:W,z2:D});         // 東
+  const open=W*0.35;
+  segs.push({x1:0,z1:D,x2:open,z2:D});      // 南左
+  segs.push({x1:W-open,z1:D,x2:W,z2:D});    // 南右
+  // 內牆
+  const rooms=layout.rooms;
+  for(let i=0;i<rooms.length;i++){
+    for(let j=i+1;j<rooms.length;j++){
+      const a=rooms[i],b=rooms[j];
+      // 水平鄰接
+      if(Math.abs(a.x+a.w-b.x)<0.15 && overlap(a.z,a.z+a.d,b.z,b.z+b.d)){
+        const zs=Math.max(a.z,b.z),ze=Math.min(a.z+a.d,b.z+b.d);
+        const len=ze-zs;
+        if(len>0.3){
+          const door=0.9;
+          if(len>door+0.6){
+            segs.push({x1:b.x,z1:zs,x2:b.x,z2:zs+len/2-door/2});
+            segs.push({x1:b.x,z1:zs+len/2+door/2,x2:b.x,z2:ze});
+          }
+        }
+      }
+      // 垂直鄰接
+      if(Math.abs(a.z+a.d-b.z)<0.15 && overlap(a.x,a.x+a.w,b.x,b.x+b.w)){
+        const xs=Math.max(a.x,b.x),xe=Math.min(a.x+a.w,b.x+b.w);
+        const len=xe-xs;
+        if(len>0.3){
+          const door=0.9;
+          if(len>door+0.6){
+            segs.push({x1:xs,z1:b.z,x2:xs+len/2-door/2,z2:b.z});
+            segs.push({x1:xs+len/2+door/2,z1:b.z,x2:xe,z2:b.z});
+          }
+        }
+      }
+    }
+  }
+  return segs;
+}
+
+function overlap(a1,a2,b1,b2){return a1<b2-0.01 && b1<a2-0.01}
+
+/* ============ 漫遊模式 ============ */
+const EYE_H=1.62,MOVE_SPEED=2.7,SPRINT=1.9,CAM_R=0.26;
+
+function enterWalk(){
+  if(!currentLayout)return;
+  walkActive=true;
+  controls.enabled=false;
+  camera.rotation.order='YXZ';
+  // 起點：找一個安全的房間中心（優先客廳）
+  const startRoom=currentLayout.rooms.find(r=>r.type==='living')||
+                 currentLayout.rooms.find(r=>r.type==='bedroom')||
+                 currentLayout.rooms[0];
+  const sx=startRoom.x+startRoom.w/2;
+  const sz=startRoom.z+startRoom.d/2;
+  camera.position.set(sx,EYE_H,sz);
+  camera.rotation.y=0; // 朝 -z 北方
+  camera.rotation.x=0;
+  // 清除按鍵狀態
+  walkKeys={};
+  // UI：顯示遮罩讓使用者點擊畫面來鎖定滑鼠
+  document.getElementById('walk-overlay').classList.add('show');
+  document.getElementById('walk-btn').classList.add('active');
+  document.getElementById('walk-btn').textContent='退出漫游';
+  document.getElementById('crosshair').classList.remove('show'); // 鎖定後才顯示
+  document.getElementById('walk-hud').classList.add('show');
+  document.getElementById('walk-hud').textContent='点击画面锁定鼠标开始漫游';
+  // 隱藏懸浮標籤（避免穿牆遮擋視線），保留地板標籤
+  roomLabels.forEach(l=>{
+    if(l.isSprite)l.visible=false;
+  });
+}
+
+function exitWalk(){
+  walkActive=false;
+  controls.enabled=true;
+  // UI
+  document.getElementById('walk-btn').classList.remove('active');
+  document.getElementById('walk-btn').textContent='🚶 漫游';
+  document.getElementById('crosshair').classList.remove('show');
+  document.getElementById('walk-hud').classList.remove('show');
+  document.getElementById('walk-overlay').classList.remove('show');
+  // 退出 PointerLock
+  if(document.pointerLockElement)document.exitPointerLock();
+  // 恢復懸浮標籤
+  roomLabels.forEach(l=>{l.visible=true});
+  // 恢復 OrbitControls 目標
+  if(currentLayout){
+    controls.target.set(currentLayout.totalW/2,1.2,currentLayout.totalD/2);
+  }
+}
+
+function updateWalk(){
+  const dt=0.016; // 約 60fps
+  let vx=0,vz=0;
+  const yaw=camera.rotation.y;
+  // 前向量（yaw=0 時朝 -z 北方，yaw=PI 時朝 +z 南方）
+  const fx=-Math.sin(yaw),fz=-Math.cos(yaw);
+  // 右向量
+  const rx=Math.cos(yaw),rz=-Math.sin(yaw);
+  if(walkKeys['KeyW']){vx+=fx;vz+=fz}
+  if(walkKeys['KeyS']){vx-=fx;vz-=fz}
+  if(walkKeys['KeyA']){vx-=rx;vz-=rz}
+  if(walkKeys['KeyD']){vx+=rx;vz+=rz}
+  // 歸一化
+  const len=Math.hypot(vx,vz);
+  if(len>0){vx/=len;vz/=len}
+  const sprint=walkKeys['ShiftLeft']||walkKeys['ShiftRight']?SPRINT:1;
+  const speed=MOVE_SPEED*sprint*dt;
+  // 分軸移動（貼牆滑動）
+  let nx=camera.position.x+vx*speed;
+  let nz=camera.position.z+vz*speed;
+  // X 軸碰撞
+  if(!isBlocked(nx,camera.position.z))camera.position.x=nx;
+  // Z 軸碰撞
+  if(!isBlocked(camera.position.x,nz))camera.position.z=nz;
+  // 更新 HUD
+  const hud=document.getElementById('walk-hud');
+  const room=findRoom(camera.position.x,camera.position.z);
+  hud.textContent=`${room?room.name:'户外'} | WASD 移动 · Shift 快跑 · Esc 退出`;
+}
+
+function isBlocked(x,z){
+  for(const s of collisionSegs){
+    const d=segPointDist(x,z,s.x1,s.z1,s.x2,s.z2);
+    if(d<CAM_R)return true;
+  }
+  return false;
+}
+
+function segPointDist(px,pz,x1,z1,x2,z2){
+  const dx=x2-x1,dz=z2-z1;
+  const len2=dx*dx+dz*dz;
+  if(len2<1e-6)return Math.hypot(px-x1,pz-z1);
+  let t=((px-x1)*dx+(pz-z1)*dz)/len2;
+  t=Math.max(0,Math.min(1,t));
+  return Math.hypot(px-(x1+t*dx),pz-(z1+t*dz));
+}
+
+function findRoom(x,z){
+  if(!currentLayout)return null;
+  for(const r of currentLayout.rooms){
+    if(x>=r.x&&x<=r.x+r.w&&z>=r.z&&z<=r.z+r.d)return r;
+  }
+  return null;
+}
+
+/* 鍵盤事件 */
+window.addEventListener('keydown',e=>{
+  if(!walkActive)return;
+  walkKeys[e.code]=true;
+  if(e.code==='Escape')exitWalk();
+  e.preventDefault();
+});
+window.addEventListener('keyup',e=>{walkKeys[e.code]=false});
+
+/* PointerLock 變化 */
+document.addEventListener('pointerlockchange',()=>{
+  const canvas=document.getElementById('three-canvas');
+  const locked=document.pointerLockElement===canvas;
+  if(!locked && walkActive){
+    // 滑鼠脫離但漫遊未退出 → 顯示遮罩等待重新點擊
+    document.getElementById('walk-overlay').classList.add('show');
+    document.getElementById('crosshair').classList.remove('show');
+    document.getElementById('walk-hud').textContent='点击画面重新锁定鼠标';
+  }else if(locked){
+    document.getElementById('walk-overlay').classList.remove('show');
+    document.getElementById('crosshair').classList.add('show');
+    document.getElementById('walk-hud').textContent='WASD 移动 · Shift 快跑 · Esc 退出';
+  }
+});
+
+/* 漫遊遮罩點擊 */
+document.getElementById('walk-overlay').addEventListener('click',()=>{
+  if(walkActive){
+    const canvas=document.getElementById('three-canvas');
+    if(canvas.requestPointerLock)canvas.requestPointerLock();
+  }
+});
+
+/* 滑鼠移動（漫遊轉向） */
+document.addEventListener('mousemove',e=>{
+  if(!walkActive||document.pointerLockElement==null)return;
+  const sens=0.0022;
+  camera.rotation.y-=e.movementX*sens;
+  camera.rotation.x-=e.movementY*sens;
+  camera.rotation.x=Math.max(-Math.PI/2.5,Math.min(Math.PI/2.5,camera.rotation.x));
+});
+
+/* 窗戶：框 + 玻璃 + 光源 */
+function addWindow(theme,glassMat,x,y,z,w,h,axis){
+  const frameMat=new THREE.MeshStandardMaterial({color:0x333333,roughness:0.4,metalness:0.6});
+  const group=new THREE.Group();
+  // 框架
+  const fw=0.06;
+  if(axis==='z'){
+    // 橫框上下
+    addMeshTo(group,new THREE.BoxGeometry(w+fw,fw,0.1),frameMat,0,h/2+fw/2,0);
+    addMeshTo(group,new THREE.BoxGeometry(w+fw,fw,0.1),frameMat,0,-h/2-fw/2,0);
+    // 豎框左右 + 中
+    addMeshTo(group,new THREE.BoxGeometry(fw,h,0.1),frameMat,-w/2-fw/2,0,0);
+    addMeshTo(group,new THREE.BoxGeometry(fw,h,0.1),frameMat,w/2+fw/2,0,0);
+    addMeshTo(group,new THREE.BoxGeometry(fw,h,0.1),frameMat,0,0,0);
+    // 玻璃
+    addMeshTo(group,new THREE.PlaneGeometry(w,h),glassMat,0,0,0.06);
+    // 窗光
+    const rl=new THREE.RectAreaLight(0xaaddff,0.5,w*0.9,h*0.9);
+    rl.position.set(0,0,0.15);
+    rl.lookAt(0,0,2);
+    group.add(rl);
+  }else{
+    addMeshTo(group,new THREE.BoxGeometry(0.1,fw,w+fw),frameMat,0,h/2+fw/2,0);
+    addMeshTo(group,new THREE.BoxGeometry(0.1,fw,w+fw),frameMat,0,-h/2-fw/2,0);
+    addMeshTo(group,new THREE.BoxGeometry(0.1,h,fw),frameMat,0,0,-w/2-fw/2);
+    addMeshTo(group,new THREE.BoxGeometry(0.1,h,fw),frameMat,0,0,w/2+fw/2);
+    addMeshTo(group,new THREE.BoxGeometry(0.1,h,fw),frameMat,0,0,0);
+    addMeshTo(group,new THREE.PlaneGeometry(w,h),glassMat,0.06,0,0);
+    group.rotation.y=Math.PI/2;
+  }
+  group.position.set(x,y,z);
+  scene.add(group);
+}
+
+function addMeshTo(parent,geo,mat,x,y,z){
+  const m=new THREE.Mesh(geo,mat);
+  m.position.set(x,y,z);
+  m.castShadow=true;m.receiveShadow=true;
+  parent.add(m);
+}
+
+/* 牆壁 + 踢腳線 */
+function buildWallWithMolding(x,z,w,thick,h,wallMat,baseMat){
+  if(w<=0.01)return;
+  const wall=new THREE.Mesh(new THREE.BoxGeometry(w,h,thick),wallMat);
+  wall.position.set(x+w/2,h/2,z+thick/2);
+  wall.castShadow=true;wall.receiveShadow=true;
+  scene.add(wall);
+  // 踢腳線
+  const base=new THREE.Mesh(new THREE.BoxGeometry(w,0.1,thick+0.02),baseMat);
+  base.position.set(x+w/2,0.05,z+thick/2);
+  scene.add(base);
+}
+
+function getRoomFloorColor(type,theme){
+  const colors={
+    living:theme.floor,
+    bedroom:Math.min(theme.floor+0x111111,0xffffff),
+    kitchen:0x554433,
+    dining:theme.floor,
+    bathroom:0x666677,
+    balcony:0x7a8a6a,
+    study:0x6a5a4a
+  };
+  return colors[type]||theme.floor;
+}
+
+function buildWall(x,z,w,thick,h,mat){
+  if(w<=0.01)return;
+  const wall=new THREE.Mesh(new THREE.BoxGeometry(w,h,thick),mat);
+  wall.position.set(x+w/2,h/2,z+thick/2);
+  wall.castShadow=true;
+  wall.receiveShadow=true;
+  scene.add(wall);
+}
+
+function buildInteriorWalls(rooms,mat,theme){
+  // 找相鄰房間的共享邊，建內牆
+  for(let i=0;i<rooms.length;i++){
+    for(let j=i+1;j<rooms.length;j++){
+      const a=rooms[i],b=rooms[j];
+      // 水平鄰接（a 右邊 = b 左邊）
+      if(Math.abs(a.x+a.w-b.x)<0.15 && overlaps1D(a.z,a.z+a.d,b.z,b.z+b.d)){
+        const zStart=Math.max(a.z,b.z);
+        const zEnd=Math.min(a.z+a.d,b.z+b.d);
+        const wlen=zEnd-zStart;
+        if(wlen>0.3){
+          // 留門洞（中間 0.9m）
+          const doorW=0.9;
+          if(wlen>doorW+0.6){
+            buildWall(b.x-0.075,zStart,wlen/2-doorW/2,0.15,2.5,mat);
+            buildWall(b.x-0.075,zStart+wlen/2+doorW/2,wlen/2-doorW/2,0.15,2.5,mat);
+          }else{
+            buildWall(b.x-0.075,zStart,wlen,0.15,2.5,mat);
+          }
+        }
+      }
+      // 垂直鄰接（a 下邊 = b 上邊）
+      if(Math.abs(a.z+a.d-b.z)<0.15 && overlaps1D(a.x,a.x+a.w,b.x,b.x+b.w)){
+        const xStart=Math.max(a.x,b.x);
+        const xEnd=Math.min(a.x+a.w,b.x+b.w);
+        const wlen=xEnd-xStart;
+        if(wlen>0.3){
+          const doorW=0.9;
+          if(wlen>doorW+0.6){
+            buildWallV(xStart,b.z-0.075,wlen/2-doorW/2,0.15,2.5,mat);
+            buildWallV(xStart+wlen/2+doorW/2,b.z-0.075,wlen/2-doorW/2,0.15,2.5,mat);
+          }else{
+            buildWallV(xStart,b.z-0.075,wlen,0.15,2.5,mat);
+          }
+        }
+      }
+    }
+  }
+}
+
+function buildWallV(x,z,w,thick,h,mat){
+  if(w<=0.01)return;
+  const wall=new THREE.Mesh(new THREE.BoxGeometry(thick,h,w),mat);
+  wall.position.set(x+thick/2,h/2,z+w/2);
+  wall.castShadow=true;
+  wall.receiveShadow=true;
+  scene.add(wall);
+}
+
+function overlaps1D(a1,a2,b1,b2){
+  return a1<b2-0.01 && b1<a2-0.01;
+}
+
+/* ============ 依房間類型放置傢俱 ============ */
+function placeFurniture(room,theme){
+  const cx=room.x+room.w/2;
+  const cz=room.z+room.d/2;
+  const g=new THREE.Group();
+
+  switch(room.type){
+    case 'living':{
+      // 沙發底座
+      addBox(g,0,0.18,room.d/2-0.55,2.2,0.15,0.95,theme.sofa,0.7,0.05);
+      // 座墊 x3（分離式）
+      for(let i=-1;i<=1;i++){
+        addRounded(g,i*0.7,0.32,room.d/2-0.55,0.62,0.18,0.85,theme.sofa,0.6,0.05);
+      }
+      // 靠背墊 x3
+      for(let i=-1;i<=1;i++){
+        addRounded(g,i*0.7,0.58,room.d/2-0.9,0.62,0.4,0.18,theme.sofa,0.7,0.05);
+      }
+      // 扶手
+      addRounded(g,-1.05,0.4,room.d/2-0.55,0.18,0.4,0.9,theme.sofa,0.6,0.05);
+      addRounded(g,1.05,0.4,room.d/2-0.55,0.18,0.4,0.9,theme.sofa,0.6,0.05);
+      // 抱枕
+      addRounded(g,-0.5,0.72,room.d/2-0.5,0.28,0.12,0.28,theme.accent,0.5,0.05);
+      addRounded(g,0.5,0.72,room.d/2-0.5,0.28,0.12,0.28,theme.accent,0.5,0.05);
+      // 茶几（玻璃面）
+      addBox(g,0,0.18,room.d/2-1.9,1.0,0.05,0.55,theme.metal,0.3,0.6);
+      addBox(g,-0.4,0.08,room.d/2-1.9,0.04,0.16,0.04,theme.metal,0.3,0.6);
+      addBox(g,0.4,0.08,room.d/2-1.9,0.04,0.16,0.04,theme.metal,0.3,0.6);
+      addBox(g,-0.4,0.08,room.d/2-2.35,0.04,0.16,0.04,theme.metal,0.3,0.6);
+      addBox(g,0.4,0.08,room.d/2-2.35,0.04,0.16,0.04,theme.metal,0.3,0.6);
+      // 電視櫃
+      addBox(g,0,0.2,room.d/2-0.2,1.8,0.4,0.35,theme.floor,0.5,0.1);
+      // 電視（發光螢幕）
+      addBox(g,0,0.75,room.d/2-0.15,1.3,0.7,0.04,0x0a0a0a,0.2,0.8);
+      const tvScreen=new THREE.Mesh(
+        new THREE.PlaneGeometry(1.2,0.62),
+        new THREE.MeshStandardMaterial({color:0x0a1a2a,emissive:0x1a3a5a,emissiveIntensity:0.8,roughness:0.1,metalness:0.2})
+      );
+      tvScreen.position.set(0,0.75,room.d/2-0.128);
+      g.add(tvScreen);
+      // 地毯
+      addPlane(g,0,0.02,room.d/2-1.9,2.0,1.3,theme.accent,0.55,true);
+      // 落地燈
+      addCylinder(g,room.w/2-0.4,0,room.d/2-1.0,0.025,1.6,theme.metal);
+      const lampShade=new THREE.Mesh(
+        new THREE.ConeGeometry(0.18,0.25,16,1,true),
+        new THREE.MeshStandardMaterial({color:0xfff5e0,emissive:0xffd060,emissiveIntensity:0.7,roughness:0.8,side:THREE.DoubleSide})
+      );
+      lampShade.position.set(room.w/2-0.4,1.55,room.d/2-1.0);
+      g.add(lampShade);
+      const lampLight=new THREE.PointLight(0xffd080,0.5,5,2);
+      lampLight.position.set(room.w/2-0.4,1.45,room.d/2-1.0);
+      g.add(lampLight);
+      // 綠植
+      addCylinder(g,-room.w/2+0.4,0,room.d/2-2.5,0.18,0.3,0x8b4513);
+      addSphere(g,-room.w/2+0.4,0.5,room.d/2-2.5,0.35,0x2d8b2d,false,16,12);
+      break;
+    }
+
+    case 'bedroom':{
+      // 床架
+      addBox(g,0,0.15,0,1.6,0.25,2.1,theme.floor,0.6,0.1);
+      // 床墊
+      addRounded(g,0,0.38,0,1.5,0.2,2.0,0xf5f5f0,0.5,0.0);
+      // 被子
+      addRounded(g,0,0.5,0.3,1.45,0.12,1.6,0xffffff,0.7,0.0);
+      // 枕頭 x2
+      addRounded(g,-0.35,0.55,-0.65,0.5,0.12,0.35,0xeeeeee,0.5,0.0);
+      addRounded(g,0.35,0.55,-0.65,0.5,0.12,0.35,0xeeeeee,0.5,0.0);
+      // 床頭板
+      addRounded(g,0,0.5,-1.05,1.6,0.7,0.08,theme.sofa,0.6,0.05);
+      // 床頭櫃
+      addBox(g,-1.0,0.25,-0.8,0.45,0.5,0.45,theme.metal,0.4,0.3);
+      // 檯燈
+      addCylinder(g,-1.0,0.5,-0.8,0.03,0.25,theme.metal);
+      const shade=new THREE.Mesh(
+        new THREE.ConeGeometry(0.1,0.12,12,1,true),
+        new THREE.MeshStandardMaterial({color:0xfff5e0,emissive:0xffd060,emissiveIntensity:0.6,side:THREE.DoubleSide})
+      );
+      shade.position.set(-1.0,0.78,-0.8);
+      g.add(shade);
+      g.add(createPointLight(-1.0,0.75,-0.8,0xffd080,0.3,3));
+      // 衣櫃
+      addBox(g,room.w/2-0.55,1.1,room.d/2-1.2,1.1,2.2,0.65,theme.floor,0.5,0.1);
+      // 衣櫃門把手
+      addCylinder(g,room.w/2-0.55,1.1,room.d/2-0.9,0.02,0.15,theme.metal);
+      break;
+    }
+
+    case 'kitchen':{
+      // 櫥櫃底座
+      addBox(g,0,0.45,room.d/2-0.4,room.w*0.85,0.9,0.6,theme.floor,0.5,0.1);
+      // 石材檯面（高光）
+      addBox(g,0,0.92,room.d/2-0.4,room.w*0.88,0.06,0.65,0x1a1a1a,0.15,0.8);
+      // 上櫃
+      addBox(g,0,1.8,room.d/2-0.2,room.w*0.85,0.7,0.4,theme.floor,0.5,0.1);
+      // 水槽（不鏽鋼）
+      addBox(g,-room.w*0.2,0.95,room.d/2-0.4,0.5,0.04,0.4,0xcccccc,0.1,0.9);
+      // 龍頭
+      addCylinder(g,-room.w*0.2,0.95,room.d/2-0.55,0.02,0.35,theme.metal);
+      // 爐灶
+      addBox(g,room.w*0.2,0.95,room.d/2-0.4,0.5,0.03,0.5,0x111111,0.2,0.5);
+      // 爐灶旋鈕
+      for(let i=0;i<4;i++){
+        addCylinder(g,room.w*0.2+(i%2-0.5)*0.15,0.97,room.d/2-0.15+Math.floor(i/2)*0.1,0.02,0.03,theme.metal);
+      }
+      break;
+    }
+
+    case 'dining':{
+      // 餐桌（石材面）
+      addBox(g,0,0.4,0,1.3,0.05,0.85,theme.metal,0.2,0.8);
+      // 桌腿
+      addBox(g,-0.5,0.2,0,0.06,0.4,0.06,theme.metal,0.3,0.6);
+      addBox(g,0.5,0.2,0,0.06,0.4,0.06,theme.metal,0.3,0.6);
+      addBox(g,-0.5,0.2,0.8,0.06,0.4,0.06,theme.metal,0.3,0.6);
+      addBox(g,0.5,0.2,0.8,0.06,0.4,0.06,theme.metal,0.3,0.6);
+      // 椅子 x4
+      [[-0.8,-0.1],[0.8,-0.1],[-0.8,0.95],[0.8,0.95]].forEach(([dx,dz])=>{
+        // 座墊
+        addRounded(g,dx,0.25,dz,0.4,0.06,0.4,theme.sofa,0.5,0.05);
+        // 椅腿
+        addBox(g,dx-0.15,0.12,dz-0.15,0.04,0.25,0.04,theme.metal,0.3,0.6);
+        addBox(g,dx+0.15,0.12,dz-0.15,0.04,0.25,0.04,theme.metal,0.3,0.6);
+        addBox(g,dx-0.15,0.12,dz+0.15,0.04,0.25,0.04,theme.metal,0.3,0.6);
+        addBox(g,dx+0.15,0.12,dz+0.15,0.04,0.25,0.04,theme.metal,0.3,0.6);
+        // 椅背
+        addRounded(g,dx,0.5,dz+0.2,0.4,0.35,0.06,theme.sofa,0.5,0.05);
+      });
+      break;
+    }
+
+    case 'bathroom':{
+      // 馬桶
+      addRounded(g,room.w/2-0.45,0.2,room.d/2-1.0,0.35,0.25,0.55,0xeeeeee,0.3,0.0);
+      addRounded(g,room.w/2-0.45,0.45,room.d/2-1.25,0.35,0.15,0.15,0xeeeeee,0.3,0.0);
+      // 洗手台櫃
+      addBox(g,-room.w/2+0.45,0.4,room.d/2-0.35,0.65,0.8,0.5,theme.floor,0.5,0.1);
+      // 台面
+      addBox(g,-room.w/2+0.45,0.82,room.d/2-0.35,0.7,0.06,0.55,0xeeeeee,0.2,0.5);
+      // 盆
+      const basin=new THREE.Mesh(
+        new THREE.CylinderGeometry(0.16,0.12,0.12,20,1,true),
+        new THREE.MeshStandardMaterial({color:0xeeeeee,roughness:0.15,metalness:0.1,side:THREE.DoubleSide})
+      );
+      basin.position.set(-room.w/2+0.45,0.84,room.d/2-0.35);
+      g.add(basin);
+      // 龍頭
+      addCylinder(g,-room.w/2+0.45,0.88,room.d/2-0.5,0.015,0.3,theme.metal);
+      // 鏡子
+      const mirror=new THREE.Mesh(
+        new THREE.PlaneGeometry(0.6,0.8),
+        new THREE.MeshPhysicalMaterial({color:0x888899,roughness:0.0,metalness:0.9,envMapIntensity:1.5,clearcoat:1.0})
+      );
+      mirror.position.set(-room.w/2+0.45,1.4,room.d/2-0.12);
+      g.add(mirror);
+      // 淋浴隔斷（玻璃）
+      const showerGlass=new THREE.Mesh(
+        new THREE.PlaneGeometry(0.8,2.0),
+        new THREE.MeshPhysicalMaterial({color:0xccffff,transparent:true,opacity:0.15,roughness:0.02,transmission:0.9,ior:1.5,side:THREE.DoubleSide})
+      );
+      showerGlass.position.set(0.4,1.0,0);
+      showerGlass.rotation.y=Math.PI/2;
+      g.add(showerGlass);
+      // 花灑
+      addCylinder(g,0.2,1.8,0.3,0.03,0.15,theme.metal);
+      break;
+    }
+
+    case 'balcony':{
+      // 綠植 x2
+      addCylinder(g,-room.w/2+0.5,0,0,0.18,0.3,0x8b4513);
+      addSphere(g,-room.w/2+0.5,0.55,0,0.35,0x2d8b2d,false,20,12);
+      addCylinder(g,room.w/2-0.5,0,0,0.18,0.3,0x8b4513);
+      addSphere(g,room.w/2-0.5,0.55,0,0.3,0x3d8b3d,false,20,12);
+      // 晾衣桿
+      addCylinder(g,0,0,0,0.025,room.w*0.8,theme.metal);
+      // 休閒椅
+      addRounded(g,-room.w/2+1.5,0.25,room.d/2-0.5,0.4,0.05,0.4,theme.sofa,0.6,0.05);
+      addBox(g,-room.w/2+1.5,0.12,room.d/2-0.5,0.35,0.25,0.35,theme.metal,0.3,0.6);
+      break;
+    }
+
+    case 'study':{
+      // 書桌面
+      addBox(g,0,0.75,room.d/2-0.5,1.3,0.05,0.65,theme.metal,0.2,0.7);
+      // 桌腿
+      addBox(g,-0.55,0.37,room.d/2-0.5,0.05,0.74,0.05,theme.metal,0.3,0.6);
+      addBox(g,0.55,0.37,room.d/2-0.5,0.05,0.74,0.05,theme.metal,0.3,0.6);
+      addBox(g,-0.55,0.37,room.d/2-0.82,0.05,0.74,0.05,theme.metal,0.3,0.6);
+      addBox(g,0.55,0.37,room.d/2-0.82,0.05,0.74,0.05,theme.metal,0.3,0.6);
+      // 椅子
+      addRounded(g,0,0.25,room.d/2-1.3,0.4,0.06,0.4,theme.sofa,0.5,0.05);
+      addRounded(g,0,0.55,room.d/2-1.5,0.06,0.5,0.4,theme.sofa,0.5,0.05);
+      // 書架
+      addBox(g,0,1.2,room.d/2-0.1,1.6,2.0,0.3,theme.floor,0.5,0.1);
+      // 書架層板
+      for(let s=0;s<4;s++){
+        addBox(g,0,0.5+s*0.45,room.d/2-0.1,1.5,0.03,0.31,theme.floor,0.5,0.1);
+        // 書本
+        for(let b=0;b<5;b++){
+          const bookColor=[0x8b1a1a,0x1a3a8b,0x1a8b3a,0x8b6f1a,0x6b1a8b][b%5];
+          addBox(g,-0.55+b*0.22,0.58+s*0.45,room.d/2-0.1,0.15,0.35,0.2,bookColor,0.6,0.05);
+        }
+      }
+      // 檯燈
+      addCylinder(g,0.45,0.78,room.d/2-0.6,0.02,0.3,theme.metal);
+      const shade=new THREE.Mesh(
+        new THREE.ConeGeometry(0.1,0.12,12,1,true),
+        new THREE.MeshStandardMaterial({color:0xfff5e0,emissive:0xffd060,emissiveIntensity:0.6,side:THREE.DoubleSide})
+      );
+      shade.position.set(0.45,1.05,room.d/2-0.6);
+      g.add(shade);
+      g.add(createPointLight(0.45,1.0,room.d/2-0.6,0xffd080,0.3,3));
+      break;
+    }
+  }
+
+  g.position.set(cx,0,cz);
+  scene.add(g);
+}
+
+function createPointLight(x,y,z,color,intensity,distance){
+  const pl=new THREE.PointLight(color,intensity,distance,2);
+  pl.position.set(x,y,z);
+  return pl;
+}
+
+/* ============ 傢俱輔助函式（強化版）============ */
+function addBox(parent,x,y,z,w,h,d,color,rough=0.7,metal=0.1){
+  const mesh=new THREE.Mesh(
+    new THREE.BoxGeometry(w,h,d),
+    new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal,envMapIntensity:0.5})
+  );
+  mesh.position.set(x,y,z);
+  mesh.castShadow=true;
+  mesh.receiveShadow=true;
+  parent.add(mesh);
+}
+
+function addRounded(parent,x,y,z,w,h,d,color,rough=0.6,metal=0.05){
+  // 用略小的圓角近似（細分面數較高的方塊）
+  const mesh=new THREE.Mesh(
+    new THREE.BoxGeometry(w,h,d,4,4,4),
+    new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal,envMapIntensity:0.4})
+  );
+  mesh.position.set(x,y,z);
+  mesh.castShadow=true;
+  mesh.receiveShadow=true;
+  parent.add(mesh);
+}
+
+function addCylinder(parent,x,y,z,r,h,color,rough=0.5,metal=0.4){
+  const mesh=new THREE.Mesh(
+    new THREE.CylinderGeometry(r,r,h,20),
+    new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal,envMapIntensity:0.6})
+  );
+  mesh.position.set(x,y+h/2,z);
+  mesh.castShadow=true;
+  parent.add(mesh);
+}
+
+function addSphere(parent,x,y,z,r,color,emissive=false,segW=16,segH=12){
+  const mat=new THREE.MeshStandardMaterial({color,roughness:0.7,metalness:0.05,envMapIntensity:0.5});
+  if(emissive){mat.emissive=new THREE.Color(color);mat.emissiveIntensity=0.5}
+  const mesh=new THREE.Mesh(new THREE.SphereGeometry(r,segW,segH),mat);
+  mesh.position.set(x,y,z);
+  mesh.castShadow=true;
+  parent.add(mesh);
+}
+
+function addPlane(parent,x,y,z,w,d,color,opacity=1,rotate=false){
+  const mat=new THREE.MeshStandardMaterial({color,roughness:0.8,transparent:opacity<1,opacity,envMapIntensity:0.3});
+  const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,d),mat);
+  if(rotate){mesh.rotation.x=-Math.PI/2}
+  mesh.position.set(x,y,z);
+  mesh.receiveShadow=true;
+  parent.add(mesh);
+}
+
+/* ============ 結果渲染 ============ */
+function renderResult(md,area,budget,style){
+  document.getElementById('loading').style.display='none';
+  const content=document.getElementById('result-content');
+  content.style.display='block';
+  const tags=[
+    {label:'面积',value:area+'㎡'},
+    {label:'预算',value:budget+'万'},
+    {label:'风格',value:style}
+  ];
+  content.innerHTML=`
+    <h2>✨ 你的装修方案</h2>
+    <div class="tag-row">${tags.map(t=>`<span class="tag">${t.label}：${t.value}</span>`).join('')}</div>
+    <div class="section-divider"></div>
+    ${mdToHtml(md)}
+  `;
+}
+
+function mdToHtml(md){
+  const lines=md.split('\n');
+  let html=[];let i=0;
+  while(i<lines.length){
+    const line=lines[i];
+    if(line.startsWith('## ')){html.push(`</div><div class="plan-section"><h3>📌 ${line.slice(3).trim()}</h3>`);i++;continue}
+    if(line.startsWith('# ')){html.push(`<h3>📌 ${line.slice(2).trim()}</h3>`);i++;continue}
+    if(line.trim().startsWith('|')&&line.trim().endsWith('|')){
+      let tableLines=[];
+      while(i<lines.length&&lines[i].trim().startsWith('|')&&lines[i].trim().endsWith('|')){tableLines.push(lines[i].trim());i++}
+      html.push(renderTable(tableLines));continue;
+    }
+    if(line.trim()===''){i++;continue}
+    let para=[];
+    while(i<lines.length&&lines[i].trim()!==''&&!lines[i].startsWith('#')&&!lines[i].trim().startsWith('|')){para.push(lines[i].trim());i++}
+    if(para.length)html.push(`<p>${para.join(' ')}</p>`);
+  }
+  let result=html.join('\n').replace(/^<\/div>/,'');
+  return `<div class="plan-section">${result}</div>`;
+}
+
+function renderTable(tableLines){
+  if(tableLines.length<2)return'';
+  const rows=tableLines.map(l=>l.split('|').slice(1,-1).map(c=>c.trim()));
+  const dataRows=rows.filter(r=>!r.every(c=>/^[\s:-]+$/.test(c)));
+  if(!dataRows.length)return'';
+  let h='<table class="cost-table"><thead><tr>';
+  dataRows[0].forEach(c=>h+=`<th>${c}</th>`);
+  h+='</tr></thead><tbody>';
+  for(let r=1;r<dataRows.length;r++){
+    const isTotal=dataRows[r][0].includes('总')||dataRows[r][0].includes('合');
+    h+=`<tr class="${isTotal?'total':''}">`;
+    dataRows[r].forEach(c=>h+=`<td>${c}</td>`);
+    h+='</tr>';
+  }
+  return h+'</tbody></table>';
+}
+
+window.addEventListener('resize',()=>{
+  if(renderer&&camera){
+    const c=document.getElementById('three-canvas');
+    camera.aspect=c.clientWidth/c.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(c.clientWidth,c.clientHeight);
+  }
+});
+
+/* ============ 3D 工具欄事件 ============ */
+// 風格切換
+document.getElementById('preview-style').addEventListener('change',e=>{
+  if(!currentLayout)return;
+  currentStyle=e.target.value;
+  buildSceneFromLayout(currentLayout,currentStyle);
+});
+
+// 天花板切換
+document.getElementById('toggle-ceiling').addEventListener('change',e=>{
+  if(ceilingMesh)ceilingMesh.visible=e.target.checked;
+});
+
+// 重置視角
+document.getElementById('reset-view').addEventListener('click',()=>{
+  if(!controls||!camera||!currentLayout)return;
+  if(walkActive)exitWalk();
+  const W=currentLayout.totalW,D=currentLayout.totalD;
+  camera.position.set(W*0.65,W*0.6,D*0.85);
+  controls.target.set(W/2,1.2,D/2);
+  controls.update();
+});
+
+// 漫遊模式切換
+document.getElementById('walk-btn').addEventListener('click',()=>{
+  if(walkActive){exitWalk()}
+  else{enterWalk()}
+});
+
+// 風格切換時退出漫遊
+const _origStyleHandler=document.getElementById('preview-style').onchange;
+document.getElementById('preview-style').addEventListener('change',()=>{
+  if(walkActive)exitWalk();
+});
+</script>
+</body>
+</html>
